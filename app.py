@@ -110,14 +110,22 @@ if market_data:
         shared_xaxes=True, vertical_spacing=0.08 if layout_mode == "Smartphone (Stacked)" else 0.1, horizontal_spacing=0.05
     )
 
+    # DYNAMIC TRADINGVIEW RANGEBREAKS (Delete Weekends & Overnight dead space)
+    tv_breaks = [dict(bounds=["sat", "mon"])] 
+    # If the timeframe is intraday, delete the gap between 3:30 PM and 9:15 AM
+    if selected_tf in ["240 min", "125 min", "15 min", "3 min"]:
+        tv_breaks.append(dict(bounds=[15.5, 9.25], pattern="hour"))
+
     for idx, sym in enumerate(all_symbols):
         df = market_data.get(sym, pd.DataFrame())
         if df.empty: continue
         
+        # --- THE MAGIC STEP: SLICE TO EXACTLY LAST 100 CANDLES ---
+        df = df.tail(100)
+        
         r = (idx // cols) + 1
         c = (idx % cols) + 1
         
-        # Clean Candlestick implementation
         fig.add_trace(
             go.Candlestick(
                 x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name=sym,
@@ -126,26 +134,23 @@ if market_data:
             ), row=r, col=c
         )
         
-        # Apply TradingView X-Axis styling (Remove weekends and clean grid)
         fig.update_xaxes(
             showgrid=True, gridwidth=1, gridcolor='#2B2B43', 
             zeroline=False, rangeslider_visible=False,
-            rangebreaks=[dict(bounds=["sat", "mon"])], # Removes weekend gaps
+            rangebreaks=tv_breaks, 
             row=r, col=c
         )
         
-        # Apply TradingView Y-Axis styling
         fig.update_yaxes(
             showgrid=True, gridwidth=1, gridcolor='#2B2B43', 
             zeroline=False, row=r, col=c
         )
 
-    # Apply global TradingView Dark Theme
     fig.update_layout(
         height=chart_height, 
-        paper_bgcolor='#131722', # TV Dark Background
-        plot_bgcolor='#131722',  # TV Dark Plot Area
-        font=dict(color='#B2B5BE'), # TV Text Color
+        paper_bgcolor='#131722', 
+        plot_bgcolor='#131722',  
+        font=dict(color='#B2B5BE'), 
         showlegend=False, 
         dragmode='pan', 
         margin=dict(l=10, r=10, t=40, b=10)
