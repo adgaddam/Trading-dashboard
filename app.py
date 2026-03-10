@@ -32,7 +32,7 @@ def get_parent_sector(stock_sym):
             return sec_sym, sec_data
     return None, None
 
-# --- SIDEBAR CONTROLS (Responsive UI) ---
+# --- SIDEBAR CONTROLS ---
 with st.sidebar:
     st.header("⚙️ Analysis Controls")
     target_stock = st.selectbox("1. Target Stock", all_stocks)
@@ -90,11 +90,10 @@ def fetch_and_resample(symbols, yf_interval, period, resample_rule):
 with st.spinner(f"Aligning {selected_tf} zones..."):
     market_data = fetch_and_resample(all_symbols, tf_config["yf"], tf_config["period"], tf_config["rule"])
 
-# Dynamic Chart Rendering
+# --- TRADINGVIEW VISUAL ENGINE ---
 if market_data:
     total_charts = len(all_symbols)
     
-    # Adapt logic based on selected device view
     if layout_mode == "Smartphone (Stacked)":
         cols = 1
         rows = total_charts
@@ -102,7 +101,7 @@ if market_data:
     else:
         cols = 2
         rows = math.ceil(total_charts / 2)
-        chart_height = 450 * rows
+        chart_height = 400 * rows
 
     titles = [f"Target: {target_stock}", f"Sector: {parent_sec_data['Name']}"] + [f"Peer: {p}" for p in selected_peers]
 
@@ -118,6 +117,7 @@ if market_data:
         r = (idx // cols) + 1
         c = (idx % cols) + 1
         
+        # Clean Candlestick implementation
         fig.add_trace(
             go.Candlestick(
                 x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name=sym,
@@ -125,7 +125,29 @@ if market_data:
                 decreasing_line_color='#F23645', decreasing_fillcolor='#F23645'
             ), row=r, col=c
         )
-        fig.update_xaxes(rangeslider_visible=False, row=r, col=c)
+        
+        # Apply TradingView X-Axis styling (Remove weekends and clean grid)
+        fig.update_xaxes(
+            showgrid=True, gridwidth=1, gridcolor='#2B2B43', 
+            zeroline=False, rangeslider_visible=False,
+            rangebreaks=[dict(bounds=["sat", "mon"])], # Removes weekend gaps
+            row=r, col=c
+        )
+        
+        # Apply TradingView Y-Axis styling
+        fig.update_yaxes(
+            showgrid=True, gridwidth=1, gridcolor='#2B2B43', 
+            zeroline=False, row=r, col=c
+        )
 
-    fig.update_layout(height=chart_height, template="plotly_dark", showlegend=False, dragmode='pan', margin=dict(l=10, r=10, t=40, b=10))
+    # Apply global TradingView Dark Theme
+    fig.update_layout(
+        height=chart_height, 
+        paper_bgcolor='#131722', # TV Dark Background
+        plot_bgcolor='#131722',  # TV Dark Plot Area
+        font=dict(color='#B2B5BE'), # TV Text Color
+        showlegend=False, 
+        dragmode='pan', 
+        margin=dict(l=10, r=10, t=40, b=10)
+    )
     st.plotly_chart(fig, use_container_width=True)
